@@ -24,7 +24,7 @@ use crate::ffi::{MPI_Message, MPI_Status};
 
 use crate::datatype::traits::*;
 use crate::raw::traits::*;
-use crate::request::{Request, Scope, StaticScope};
+use crate::request::{AsyncRequest, Request, Scope, StaticScope};
 use crate::topology::traits::*;
 use crate::topology::{AnyProcess, CommunicatorRelation, Process, Rank};
 use crate::{with_uninitialized, with_uninitialized2};
