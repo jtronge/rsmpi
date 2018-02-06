@@ -254,7 +254,7 @@ impl<'a, S: Scope<'a>> Request<'a, S> {
     /// - `request` must not be used after calling `from_raw`.
     /// - Any buffers owned by `request` must live longer than `scope`.
     pub unsafe fn from_raw(request: MPI_Request, scope: S) -> Self {
-        debug_assert!(!request.is_null());
+        debug_assert!(!request.is_handle_null());
         scope.register();
         Self {
             request,
@@ -281,18 +281,17 @@ impl<'a, S: Scope<'a>> AsyncRequest<'a, S> for Request<'a, S> {
     }
 }
 
-/// A collection of request objects for a non-blocking operation registered
-/// with a `Scope` of lifetime `'a`.
+/// A collection of request objects for a non-blocking operation registered with a `Scope` of
+/// lifetime `'a`.
 ///
-/// The `Scope` is needed to ensure that all buffers associated request will
-/// outlive the request itself, even if the destructor of the request fails to
-/// run.
+/// The `Scope` is needed to ensure that all buffers associated request will outlive the request
+/// itself, even if the destructor of the request fails to run.
 ///
 /// # Panics
 ///
 /// Panics if the collection is dropped while it contains outstanding requests.
-/// To prevent this, call `wait_all`, `wait_all_without_status`, or `test`.
-/// Alternatively, wrap the request inside a `WaitAllGuard` or `CancelAllGuard`.
+/// To prevent this, call `wait_all` or repeatedly call `wait_some`, `wait_any`, `test_any`,
+/// `test_some`, or `test_all` until all requests are reported as complete.
 ///
 /// # Examples
 ///
@@ -304,8 +303,15 @@ impl<'a, S: Scope<'a>> AsyncRequest<'a, S> for Request<'a, S> {
 #[must_use]
 #[derive(Debug)]
 pub struct RequestCollection<'a, S: Scope<'a> = StaticScope> {
+    // Tracks the number of request handles in `requests` are active.
     outstanding: usize,
+
+    // NOTE: Once Rust supports some sort of "null pointer optimization" for custom types, this
+    // could become Vec<Option<MPI_Request>>.
     requests: Vec<MPI_Request>,
+
+    // The scope attached to the RequestCollection. All requests in the collection must be
+    // deallocated when this scope exits.
     scope: S,
     phantom: PhantomData<Cell<&'a ()>>,
 }
@@ -319,7 +325,42 @@ impl<'a, S: Scope<'a>> Drop for RequestCollection<'a, S> {
 }
 
 impl<'a, S: Scope<'a>> RequestCollection<'a, S> {
-    /// Returns the number of outstanding requests in the collection.
+    // Validates the number of outstanding requests.
+    fn check_outstanding(&self) {
+        debug_assert!(
+            self.outstanding() == self.requests.iter().filter(|&r| !r.is_handle_null()).count(),
+            "Internal rsmpi error: the number of outstanding requests in the RequestCollection has \
+            fallen out of sync with the tracking count.");
+    }
+
+    /// Called to modify the number of outstanding elements. Validates the count on debug builds.
+    fn set_outstanding(&mut self, outstanding: usize) {
+        self.outstanding = outstanding;
+
+        self.check_outstanding();
+    }
+
+    /// Called after a `wait_any` operation to validate that all requests are now null in DEBUG
+    /// builds. This is to smoke out if the user is sneaking persistent requests into the
+    /// collection.
+    fn ensure_null(&self, idx: i32) {
+        debug_assert!(
+            self.requests[idx as usize].is_handle_null(),
+            "Persistent requests are not allowed in RequestCollection."
+        );
+    }
+
+    /// Called after a `wait_all` operations to validate that all requests are now null in DEBUG
+    /// builds. This is to smoke out if the user is sneaking persistent requests into the
+    /// collection.
+    fn ensure_all_null(&self) {
+        debug_assert!(
+            self.requests.iter().all(|r| r.is_handle_null()),
+            "Persistent requests are not allowed in RequestCollection."
+        );
+    }
+
+    /// `outstanding` returns the number of requests in the collection that haven't been completed.
     pub fn outstanding(&self) -> usize {
         self.outstanding
     }
@@ -340,36 +381,71 @@ impl<'a, S: Scope<'a>> RequestCollection<'a, S> {
         (requests, scope)
     }
 
-    /// `shrink` removes all deallocated requests from the collection. It does
-    /// not shrink the size of the underlying MPI_Request array, allowing the
-    /// RequestCollection to be efficiently re-used for another set of requests
-    /// without needing additional allocations.
+    /// `shrink` removes all deallocated requests from the collection. It does not shrink the size
+    /// of the underlying MPI_Request array, allowing the RequestCollection to be efficiently
+    /// re-used for another set of requests without needing additional allocations.
     pub fn shrink(&mut self) {
-        self.requests.retain(|&req| !req.is_null())
+        self.requests.retain(|&req| !req.is_handle_null())
     }
 
-    /// `wait_any` blocks until any request in the collection completes.
+    /// `wait_any` blocks until any active request in the collection completes. It returns
+    /// immediately if all requests in the collection are deallocated.
+    ///
+    /// If there are any active requests in the collection, then it returns `Some((idx, status))`,
+    /// where `idx` is the index of the completed request in the collection and `status` is the
+    /// status of the completed request. The request at `idx` will be set to None. `outstanding()`
+    /// will be reduced by 1.
     /// 
-    /// If there are any non-null requests in the collection, then it returns
-    /// `Some((idx, status))`, where `idx` is the index of the completed
-    /// request in the colleciton, and `status` is the status of the completed
-    /// request. Returns `None` if all requests are null.
-    /// 
+    /// Returns `None` if there are no active requests. `outstanding()` is 0.
+    ///
     /// # Standard section(s)
     ///
     /// 3.7.5
     pub fn wait_any(&mut self) -> Option<(usize, Status)> {
         let mut status: MPI_Status = unsafe { mem::uninitialized() };
-        raw::wait_any(&mut self.requests, Some(&mut status)).map(|idx| {
+        let result = raw::wait_any(&mut self.requests, Some(&mut status)).map(|idx| {
+            self.ensure_null(idx);
             self.outstanding -= 1;
             (idx as usize, Status::from_raw(status))
-        })
+        });
+        self.check_outstanding();
+        result
     }
 
-    /// Wait for all requests in the collection to complete.
+    /// `wait_any_without_status` blocks until any active request in the collection completes. It
+    /// returns immediately if all requests in the collection are deallocated.
+    ///
+    /// If there are any active requests in the collection, then it returns `Some(idx)`, where
+    /// `idx` is the index of the completed request in the collection and `status` is the status of
+    /// the completed request. The request at `idx` will be set to None. `outstanding()` will be
+    /// reduced by 1.
     /// 
-    /// `outstanding()` shall be equal to 0 on completion.
+    /// Returns `None` if there are no active requests. `outstanding()` is 0.
+    ///
+    /// # Standard section(s)
+    ///
+    /// 3.7.5
+    pub fn wait_any_without_status(&mut self) -> Option<usize> {
+        let result = raw::wait_any(&mut self.requests, None).map(|idx| {
+            self.ensure_null(idx);
+            self.outstanding -= 1;
+            (idx as usize)
+        });
+        self.check_outstanding();
+        result
+    }
+
+    /// `wait_all_into` blocks until all requests in the collection are deallocated. Upon return,
+    /// all requests in the collection will be deallocated. `outstanding()` will be equal to 0.
+    /// `statuses` will be updated with the status for each request that is completed by
+    /// `wait_all_into` where each status will match the index of the completed request. The status
+    /// for deallocated entries will be set to empty.
     /// 
+    /// Panics if `statuses.len()` is not >= `self.len()`.
+    ///
+    /// If you do not need the status of the completed requests, `wait_all_without_status` is
+    /// slightly more efficient because it does not allocate memory.
+    ///
     /// # Standard section(s)
     ///
     /// 3.7.5
@@ -382,10 +458,12 @@ impl<'a, S: Scope<'a>> RequestCollection<'a, S> {
                 statuses.len())
         };
 
-        raw::wait_all(&mut self.requests[..], Some(raw_statuses));
-        self.outstanding = 0;
+        raw::wait_all(&mut self.requests, Some(raw_statuses));
+
+        self.ensure_all_null();
+        self.set_outstanding(0);
     }
-    
+
     /// Wait for all requests in the collection to complete.
     /// 
     /// `outstanding()` shall be equal to 0 on completion.
@@ -402,7 +480,7 @@ impl<'a, S: Scope<'a>> RequestCollection<'a, S> {
     ///
     /// 3.7.5
     pub fn wait_all(&mut self) -> Vec<Status> {
-        let mut statuses = Vec::new();
+        let mut statuses = vec![unsafe { mem::uninitialized() }; self.requests.len()];
         self.wait_all_into(&mut statuses[..]);
         statuses
     }
@@ -419,16 +497,18 @@ impl<'a, S: Scope<'a>> RequestCollection<'a, S> {
         }
     }
 
-    /// Wait for all requests in the collection to complete.
-    /// 
-    /// `outstanding()` shall be equal to 0 on completion.
-    /// 
+    /// `wait_all_without_status` blocks until all requests in the collection are deallocated. Upon
+    /// return, all requests in the collection will be deallocated. `outstanding()` will be equal to
+    /// 0.
+    ///
     /// # Standard section(s)
     ///
     /// 3.7.5
     pub fn wait_all_without_status(&mut self) {
         raw::wait_all(&mut self.requests[..], None);
-        self.outstanding = 0;
+
+        self.ensure_all_null();
+        self.set_outstanding(0);
     }
 }
 
