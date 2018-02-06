@@ -100,7 +100,7 @@ fn to_statuses_ptr_mut(statuses: Option<&mut [MPI_Status]>) -> (usize, *mut MPI_
 ///
 /// # Standard section(s)
 ///
-/// 3.7.5
+/// 3.7.3
 pub fn test(request: &mut MPI_Request) -> Option<MPI_Status> {
     unsafe {
         let mut status: MPI_Status = mem::uninitialized();
@@ -125,7 +125,7 @@ pub fn test(request: &mut MPI_Request) -> Option<MPI_Status> {
 ///
 /// # Standard section(s)
 ///
-/// 3.7.5
+/// 3.7.3
 pub fn wait(request: &mut MPI_Request, status: Option<&mut MPI_Status>) {
     unsafe {
         MPI_Wait(request, to_status_ptr_mut(status));
