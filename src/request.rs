@@ -91,7 +91,7 @@ pub trait AsyncRequest<'a, S: Scope<'a>>: AsRaw<Raw = MPI_Request> + Sized {
     /// 3.7.3
     fn wait(self) -> Status {
         let mut status: MPI_Status = unsafe { mem::uninitialized() };
-        raw::with(unsafe { &mut self.into_raw().0 }, Some(&mut status));
+        raw::wait(unsafe { &mut self.into_raw().0 }, Some(&mut status));
         Status::from_raw(status)
     }
 
@@ -103,7 +103,7 @@ pub trait AsyncRequest<'a, S: Scope<'a>>: AsRaw<Raw = MPI_Request> + Sized {
     ///
     /// 3.7.3
     fn wait_without_status(self) {
-        raw::with(unsafe { &mut self.into_raw().0 }, None)
+        raw::wait(unsafe { &mut self.into_raw().0 }, None)
     }
 
     /// Test whether an operation has finished.
