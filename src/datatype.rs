@@ -972,7 +972,10 @@ where
 /// Implements a buffer with a known length.
 pub trait Buffer {
     /// The type of each element in the `Buffer`.
-    type Item: Equivalence;
+    type Item;
+
+    /// The type for the `Datatype` element associated with the items in `Buffer`
+    type Out: Datatype;
 
     /// The type of the exclusive owner of the `Buffer`. If the implementation is borrowing the
     /// buffer from another source, then `Owner` should be `()`. Otherwise, is a Rust owner of heap
@@ -993,9 +996,7 @@ pub trait Buffer {
     }
 
     /// Get the MPI data type
-    fn as_datatype(&self) -> <Self::Item as Equivalence>::Out {
-        Self::Item::equivalent_datatype()
-    }
+    fn as_datatype(&self) -> Self::Out;
 }
 
 /// Implements buffers that can be read from.
@@ -1019,9 +1020,13 @@ pub trait WriteBuffer: Buffer {
 // impls for &'a T
 impl<'a, T: Equivalence> Buffer for &'a T {
     type Item = T;
+    type Out = T::Out;
     type Owner = ();
     fn take_ownership(self) -> Self::Owner {}
     fn len(&self) -> usize { 1 }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for &'a T {
@@ -1031,9 +1036,13 @@ impl<'a, T: Equivalence> ReadBuffer for &'a T {
 // impls for &'a mut T
 impl<'a, T: Equivalence> Buffer for &'a mut T {
     type Item = T;
+    type Out = T::Out;
     type Owner = ();
     fn take_ownership(self) -> Self::Owner {}
     fn len(&self) -> usize { 1 }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for &'a mut T {
@@ -1047,9 +1056,13 @@ impl<'a, T: Equivalence> WriteBuffer for &'a mut T {
 // impls for &'a [T]
 impl<'a, T: Equivalence> Buffer for &'a [T] {
     type Item = T;
+    type Out = T::Out;
     type Owner = ();
     fn take_ownership(self) -> Self::Owner {}
     fn len(&self) -> usize { (**self).len() }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for &'a [T] {
@@ -1059,9 +1072,13 @@ impl<'a, T: Equivalence> ReadBuffer for &'a [T] {
 // impls for &'a mut [T]
 impl<'a, T: Equivalence> Buffer for &'a mut [T] {
     type Item = T;
+    type Out = T::Out;
     type Owner = ();
     fn take_ownership(self) -> Self::Owner {}
     fn len(&self) -> usize { (**self).len() }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for &'a mut [T] {
@@ -1075,9 +1092,13 @@ impl<'a, T: Equivalence> WriteBuffer for &'a mut [T] {
 // impls for Box<T>
 impl<'a, T: Equivalence> Buffer for Box<T> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { 1 }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Box<T> {
@@ -1091,9 +1112,13 @@ impl<'a, T: Equivalence> WriteBuffer for Box<T> {
 // impls for Box<[T]>
 impl<'a, T: Equivalence> Buffer for Box<[T]> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { (**self).len() }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Box<[T]> {
@@ -1107,9 +1132,13 @@ impl<'a, T: Equivalence> WriteBuffer for Box<[T]> {
 // impls for Vec<T>
 impl<'a, T: Equivalence> Buffer for Vec<T> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { self.len() }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Vec<T> {
@@ -1123,9 +1152,13 @@ impl<'a, T: Equivalence> WriteBuffer for Vec<T> {
 // impls for Rc<T>
 impl<'a, T: Equivalence> Buffer for Rc<T> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { 1 }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Rc<T> {
@@ -1135,9 +1168,13 @@ impl<'a, T: Equivalence> ReadBuffer for Rc<T> {
 // impls for Rc<Vec<T>>
 impl<'a, T: Equivalence> Buffer for Rc<Vec<T>> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { (**self).len() }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Rc<Vec<T>> {
@@ -1147,9 +1184,13 @@ impl<'a, T: Equivalence> ReadBuffer for Rc<Vec<T>> {
 // impls for Arc<T>
 impl<'a, T: Equivalence> Buffer for Arc<T> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { 1 }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Arc<T> {
@@ -1159,9 +1200,13 @@ impl<'a, T: Equivalence> ReadBuffer for Arc<T> {
 // impls for Arc<Vec<T>>
 impl<'a, T: Equivalence> Buffer for Arc<Vec<T>> {
     type Item = T;
+    type Out = T::Out;
     type Owner = Self;
     fn take_ownership(self) -> Self::Owner { self }
     fn len(&self) -> usize { (**self).len() }
+    fn as_datatype(&self) -> Self::Out {
+        Self::Item::equivalent_datatype()
+    }
 }
 
 impl<'a, T: Equivalence> ReadBuffer for Arc<Vec<T>> {
@@ -1514,6 +1559,26 @@ where
     B: 'b + Pointer,
 {
 }
+
+// impl<'d, 'b, D, B: ?Sized> Buffer for View<'d, 'b, D, B>
+// where
+//     D: 'd + Datatype,
+//     B: 'b + Pointer,
+// {
+//     type Item = B;
+//     type Out = D;
+//     type Owner = ();
+//     fn take_ownership(self) -> Self::Owner {}
+//     fn len(&self) -> usize { self.count.as_value().expect("Negative count values are not allowed") }
+// }
+
+// impl<'d, 'b, D, B: ?Sized> ReadBuffer for View<'d, 'b, D, B>
+// where
+//     D: 'd + Datatype,
+//     B: 'b + Pointer,
+// {
+//     fn as_ptr(&self) -> *const Self::Item { self.buffer }
+// }
 
 /// A buffer with a user specified count and datatype
 ///
