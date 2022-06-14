@@ -39,11 +39,8 @@ use crate::ffi::{MPI_Request, MPI_Status};
 
 use crate::point_to_point::Status;
 use crate::raw::traits::*;
+use crate::raw;
 use crate::with_uninitialized;
-
-use point_to_point::Status;
-use raw::traits::*;
-use raw;
 
 /// Check if the request is `MPI_REQUEST_NULL`.
 fn is_null(request: MPI_Request) -> bool {

@@ -287,16 +287,21 @@ pub unsafe trait Source: AsCommunicator {
         Sc: Scope<'a>,
     {
         unsafe {
-            ffi::MPI_Irecv(
-                buf.pointer_mut(),
-                buf.count(),
-                buf.as_datatype().as_raw(),
-                self.source_rank(),
-                tag,
-                self.as_communicator().as_raw(),
-                &mut request,
-            );
-            Request::from_raw_data(request, scope, buf)
+            Request::from_raw(
+                with_uninitialized(|request| {
+                    ffi::MPI_Irecv(
+                        buf.pointer_mut(),
+                        buf.count(),
+                        buf.as_datatype().as_raw(),
+                        self.source_rank(),
+                        tag,
+                        self.as_communicator().as_raw(),
+                        request,
+                    )
+                })
+                .1,
+                scope,
+            )
         }
     }
 

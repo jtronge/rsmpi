@@ -56,9 +56,10 @@ use crate::with_uninitialized;
 
 /// Datatype traits
 pub mod traits {
-    pub use super::{AsDatatype, Buffer, BufferOld, BufferMutOld, Collection, Datatype, Equivalence,
-                    Partitioned, PartitionedBuffer, PartitionedBufferMut, Pointer, PointerMut,
-                    ReadBuffer, WriteBuffer, UncommittedDatatype};
+    pub use super::{AsDatatype, Buffer, BufferMut, BufferOld, BufferMutOld, Collection,
+                    Datatype, Equivalence, Partitioned, PartitionedBuffer,
+                    PartitionedBufferMut, Pointer, PointerMut, ReadBuffer, WriteBuffer,
+                    UncommittedDatatype};
 }
 
 /// A reference to an MPI data type.

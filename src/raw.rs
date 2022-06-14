@@ -1,6 +1,6 @@
 //! Bridge between rust types and raw values
 
-use ffi::*;
+use crate::ffi::*;
 
 use std;
 use std::mem;
