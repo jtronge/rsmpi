@@ -31,6 +31,7 @@ fn main() {
         num_cycles: u32,
         material_properties: [f64; 20],
     }
+    println!("MyProgramOpts::hash() = {}", MyProgramOpts::hash());
 
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct MyDataRust {
@@ -38,6 +39,7 @@ fn main() {
         f: f64,
         i: u16,
     }
+    println!("MyDataRust::hash() = {}", MyDataRust::hash());
 
     assert_equivalence(
         &world,
@@ -60,6 +62,7 @@ fn main() {
         f: f64,
         i: u16,
     }
+    println!("MyDataC::hash() = {}", MyDataC::hash());
 
     assert_equivalence(
         &world,
@@ -75,11 +78,15 @@ fn main() {
         },
     );
 
+    // They should have the same hash
+    assert_eq!(MyDataRust::hash(), MyDataC::hash());
+
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct MyDataOrdered {
         bf: (bool, f64),
         i: u16,
     }
+    println!("MyDataOrdered::hash() = {}", MyDataOrdered::hash());
 
     assert_equivalence(
         &world,
@@ -98,6 +105,7 @@ fn main() {
     struct MyDataNestedTuple {
         bfi: (bool, (f64, u16)),
     }
+    println!("MyDataNestedTuple::hash() = {}", MyDataNestedTuple::hash());
 
     assert_equivalence(
         &world,
@@ -110,6 +118,7 @@ fn main() {
             bfi: (true, (3.4, 7)),
         },
     );
+    assert_eq!(MyDataRust::hash(), MyDataNestedTuple::hash());
 
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct MyDataUnnamed(bool, f64, u16);
@@ -123,12 +132,15 @@ fn main() {
         },
         &MyDataUnnamed(true, 3.4, 7),
     );
+    assert_eq!(MyDataRust::hash(), MyDataUnnamed::hash());
 
     #[derive(Equivalence, PartialEq, Debug)]
     struct BoolBoolBool(bool, bool, bool);
+    println!("BoolBoolBool::hash() = {}", BoolBoolBool::hash());
 
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct ThreeBool([bool; 3]);
+    println!("ThreeBool::hash() = {}", ThreeBool::hash());
 
     assert_equivalence(
         &world,
@@ -138,9 +150,11 @@ fn main() {
 
     #[derive(Equivalence, PartialEq, Debug)]
     struct ComplexComplexComplex((i8, bool, i8), (i8, bool, i8), (i8, bool, i8));
+    println!("ComplexComplexComplex::hash() = {}", ComplexComplexComplex::hash());
 
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct ThreeComplex([(i8, bool, i8); 3]);
+    println!("ThreeComplex::hash() = {}", ThreeComplex::hash());
 
     assert_equivalence(
         &world,
@@ -150,9 +164,11 @@ fn main() {
 
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct Empty;
+    println!("Empty::hash() = {}", Empty::hash());
 
     #[derive(Equivalence, PartialEq, Debug)]
     struct ZeroArray([i32; 0]);
+    println!("ZeroArray::hash() = {}", ZeroArray::hash());
 
     assert_equivalence(&world, &ZeroArray([]), &Empty);
 
@@ -161,9 +177,11 @@ fn main() {
         b: bool,
         child: Child,
     }
+    println!("Parent::hash() = {}", Parent::hash());
 
     #[derive(Equivalence, Default, PartialEq, Debug)]
     struct Child(f64, u16);
+    println!("Child::hash() = {}", Child::hash());
 
     assert_equivalence(
         &world,

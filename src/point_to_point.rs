@@ -1102,6 +1102,10 @@ impl MatchedReceiveVec for (Message, Status) {
             fn equivalent_datatype() -> Self::Out {
                 M::equivalent_datatype()
             }
+
+            fn hash() -> u64 {
+                M::hash()
+            }
         }
 
         let mut res = (0..count)

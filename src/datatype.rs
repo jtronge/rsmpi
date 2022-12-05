@@ -175,43 +175,48 @@ pub unsafe trait Equivalence {
     type Out: Datatype;
     /// The MPI datatype that is equivalent to this Rust type
     fn equivalent_datatype() -> Self::Out;
+    /// Hash value representing this type
+    fn hash() -> u64;
 }
 
 macro_rules! equivalent_system_datatype {
-    ($rstype:path, $mpitype:path) => {
+    ($rstype:path, $mpitype:path, $hash:literal) => {
         unsafe impl Equivalence for $rstype {
             type Out = SystemDatatype;
             fn equivalent_datatype() -> Self::Out {
                 unsafe { DatatypeRef::from_raw($mpitype) }
             }
+            fn hash() -> u64 {
+                $hash
+            }
         }
     };
 }
 
-equivalent_system_datatype!(bool, ffi::RSMPI_C_BOOL);
+equivalent_system_datatype!(bool, ffi::RSMPI_C_BOOL, 0);
 
-equivalent_system_datatype!(f32, ffi::RSMPI_FLOAT);
-equivalent_system_datatype!(f64, ffi::RSMPI_DOUBLE);
+equivalent_system_datatype!(f32, ffi::RSMPI_FLOAT, 1);
+equivalent_system_datatype!(f64, ffi::RSMPI_DOUBLE, 2);
 
-equivalent_system_datatype!(i8, ffi::RSMPI_INT8_T);
-equivalent_system_datatype!(i16, ffi::RSMPI_INT16_T);
-equivalent_system_datatype!(i32, ffi::RSMPI_INT32_T);
-equivalent_system_datatype!(i64, ffi::RSMPI_INT64_T);
+equivalent_system_datatype!(i8, ffi::RSMPI_INT8_T, 3);
+equivalent_system_datatype!(i16, ffi::RSMPI_INT16_T, 4);
+equivalent_system_datatype!(i32, ffi::RSMPI_INT32_T, 5);
+equivalent_system_datatype!(i64, ffi::RSMPI_INT64_T, 6);
 
-equivalent_system_datatype!(u8, ffi::RSMPI_UINT8_T);
-equivalent_system_datatype!(u16, ffi::RSMPI_UINT16_T);
-equivalent_system_datatype!(u32, ffi::RSMPI_UINT32_T);
-equivalent_system_datatype!(u64, ffi::RSMPI_UINT64_T);
+equivalent_system_datatype!(u8, ffi::RSMPI_UINT8_T, 7);
+equivalent_system_datatype!(u16, ffi::RSMPI_UINT16_T, 8);
+equivalent_system_datatype!(u32, ffi::RSMPI_UINT32_T, 9);
+equivalent_system_datatype!(u64, ffi::RSMPI_UINT64_T, 10);
 
 #[cfg(target_pointer_width = "32")]
-equivalent_system_datatype!(usize, ffi::RSMPI_UINT32_T);
+equivalent_system_datatype!(usize, ffi::RSMPI_UINT32_T, 11);
 #[cfg(target_pointer_width = "32")]
-equivalent_system_datatype!(isize, ffi::RSMPI_INT32_T);
+equivalent_system_datatype!(isize, ffi::RSMPI_INT32_T, 12);
 
 #[cfg(target_pointer_width = "64")]
-equivalent_system_datatype!(usize, ffi::RSMPI_UINT64_T);
+equivalent_system_datatype!(usize, ffi::RSMPI_UINT64_T, 13);
 #[cfg(target_pointer_width = "64")]
-equivalent_system_datatype!(isize, ffi::RSMPI_INT64_T);
+equivalent_system_datatype!(isize, ffi::RSMPI_INT64_T, 14);
 
 /// A user defined MPI datatype
 ///
