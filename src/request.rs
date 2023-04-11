@@ -651,7 +651,7 @@ impl<'a, D: ?Sized> RequestCollection<'a, D> {
 
     /// Wait for all requests to complete, putting (request_index, status, saved_data)
     /// into result for every completed request.
-    pub fn wait_all(&mut self, result: &mut Vec<(usize, Status, &'a D)>) {
+    pub fn wait_all(&mut self, result: Option<&mut Vec<(usize, Status, &'a D)>>) {
         let _res = unsafe {
             ffi::MPI_Waitall(
                 self.requests
@@ -663,13 +663,15 @@ impl<'a, D: ?Sized> RequestCollection<'a, D> {
             )
         };
 
-        result.clear();
-        result.reserve(self.requests.len());
-        for i in 0..self.requests.len() {
-            if let Some(data) = self.data[i].take() {
-                let status = unsafe { self.statuses[i].assume_init() };
-                let status = Status::from_raw(status);
-                result.push((i, status, data));
+        if let Some(result) = result {
+            result.clear();
+            result.reserve(self.requests.len());
+            for i in 0..self.requests.len() {
+                if let Some(data) = self.data[i].take() {
+                    let status = unsafe { self.statuses[i].assume_init() };
+                    let status = Status::from_raw(status);
+                    result.push((i, status, data));
+                }
             }
         }
     }

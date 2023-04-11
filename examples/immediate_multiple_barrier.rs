@@ -48,7 +48,7 @@ fn main() {
             coll.add(req);
         }
         let mut result = vec![];
-        coll.wait_all(&mut result);
+        coll.wait_all(Some(&mut result));
         assert_eq!(result.len(), COUNT);
     });
 

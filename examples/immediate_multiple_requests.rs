@@ -106,7 +106,7 @@ fn main() {
         }
 
         let mut out = vec![];
-        coll.wait_all(&mut out);
+        coll.wait_all(Some(&mut out));
         assert_eq!(out.len(), 2 * COUNT);
         let mut send_count = 0;
         let mut recv_count = 0;
@@ -136,7 +136,7 @@ fn main() {
             coll.add(rreq);
         }
         let mut out: Vec<(usize, Status, &i32)> = vec![];
-        coll.wait_all(&mut out);
+        coll.wait_all(Some(&mut out));
         assert_eq!(out.len(), 2 * COUNT);
     });
     // Ensure the result and x are an incrementing array of integers
