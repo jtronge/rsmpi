@@ -673,6 +673,10 @@ impl<'a, D: ?Sized> RequestCollection<'a, D> {
                     result.push((i, status, data));
                 }
             }
+        } else {
+            for i in 0..self.requests.len() {
+                let _ = self.data[i].take();
+            }
         }
     }
 
